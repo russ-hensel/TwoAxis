@@ -1,8 +1,9 @@
 // Program description ( ):
-//      TwoAxis Gimbal Control copy from DD clock for arduino using accel library 
-//
+//      TwoAxis Gimbal Control arduino using accel library 
+//            or a laser cannon using geared steppers 
 //      Features
-//           
+//           Serial monitor control of 2 steppers on a gimbal.
+//           Can aim at a target then remember the stepper position to aim at same target again         
 //
 // History/Status:  ( most recent at top ** done !! pending )
 //        Summary:  Ver1  
@@ -17,13 +18,16 @@
 //
 // Environment:  
 //    Arduino, compile with arduino.exe  1.60
-//              Developed on Windows 7 Pro 64 bit
+//              Developed on Windows 10 64 bit
 //              Running:
 //              
 //                   use a terminal emulator on the PC side, or the arduino serial monitor,
-//                   my python smart terminal program
+//                   my python smart terminal program, see 
+//                     russ-hensel/python_smart_terminal: A smart serial terminal written in python
+//                     https://github.com/russ-hensel/python_smart_terminal
+//
 //                   For configuation info see header file (.h), comm rates, ports....  ( for program version see VERSION_ID )
-//              
+//                   also see readme.h which may have some information 
 //
 // Author:      russ_hensel http://www.opencircuits.com/User:Russ_hensel
 //              
@@ -63,18 +67,17 @@ void rptHelp( void ) {
     Serial.println( F( "" ) );
     Serial.print(   F( "Arduino:  " ) );  
     Serial.println( VERSION_ID  );   
-    Serial.println( F( "mnn    chooseMotor  " ) );                     // case 'm':    noSub   m1 m2        choose motor,  
-    Serial.println( F( "tn     move to Target n  " ) );                // case 't':    tnn          targetBoth saveTarget  ( remember target )  ?? t negative no to save??
-    Serial.println( F( "t-n    save Target n  " ) );                   // case 't':    tnn          targetBoth saveTarget  ( remember target )  ?? t negative no to save??
-    Serial.println( F( "b      baklash adj   " ) );                    // case 'b':    b            backlashAdj
+    Serial.println( F( "mnn    chooseMotor  " ) );                     // case 'm':    noSub                              choose motor,  
+    Serial.println( F( "tn     move to Target n  " ) );                // case 't':    targetBoth                         ( t negative no to save )
+    Serial.println( F( "t-n    save Target n  " ) );                   // case 't':    saveTarget                         ( remember target )  ?? t negative no to save??
+    Serial.println( F( "b      baklash adj   " ) );                    // case 'b':    backlashAdj
     Serial.println( F( "nn     cmotor nudge n  !!" ) );                //  case 'n':   adj1   adj2
     Serial.println( F( "snn    cmotor setSpeed" ) );                   // case 's':    setMaxSpeed1   setMaxSpeed2    
-    Serial.println( F( "ann    cmotor setAcceleration" ) );            // case 'a'    setAcc1        setAcc2        
-    // Serial.println( F( "dnn    doDance" ) );                           // case 'd'    do1Dance  doDance2   
-    Serial.println( F( "z      both motors zeroPosition" ) );          // case 'z'    for both axis  zeroPosition  
-    Serial.println( F( "w      statusReport WhatWhere" ) );            //  case 'w':  what where    statusReport( 
-    Serial.println( F( "v      Version of software" ) );               //  case '     rptVersion
-    Serial.println( F( "?      Help" ) );                              //  case '?' 
+    Serial.println( F( "ann    cmotor setAcceleration" ) );            // case 'a'     setAcc1        setAcc2        
+    Serial.println( F( "z      both motors zeroPosition" ) );          // case 'z'     for both axis  zeroPosition  
+    Serial.println( F( "w      statusReport WhatWhere" ) );            //  case 'w':   what where     statusReport
+    Serial.println( F( "v      Version of software" ) );               //  case '      rptVersion
+    Serial.println( F( "?      Help" ) );                              //  case '?'    rptHelp
 
   return;
 }
@@ -84,28 +87,18 @@ void rptHelp( void ) {
 // ---------- Main ----------   
 void loop()   {
     
-   // unsigned char   debugStr;
     unsigned char   locCmd;
     long            cmdPriorNbr;
-    //uint8_t         z_pin;    // pin for z command 
 
     serialCmd.tryRecCmd( );
-    
-    // stopFlag not used now just old junk 
-    if ( serialCmd.stopFlag  )   {
-      //Serial.print( F( "# Stopped" ) );
-      //Serial.println( "" );
-      serialCmd.stopFlag  = 0;
-      serialCmd.gotCmd    = 0;
-    }
+
     if ( serialCmd.gotCmd  )   {
      
       locCmd   = serialCmd.cmdPrior[0];     // in case access is expensive
       // lower case the command as necessary // combine with above and make sub, possibly inline -- beware special char 
       if ( ( locCmd < 97 ) && ( locCmd > 64 ) ) {
           locCmd += 32;
-      } 
-      
+      }
       // decode command....
       cmdPriorNbr   = serialCmd.parseCmdNbr( serialCmd.cmdPrior );
       switch ( locCmd )  {
@@ -122,14 +115,6 @@ void loop()   {
         case 'b':  // 
             backlashAdj(  );
             break;
-
-        case 'd':  // 
-            if ( motor_ix == 1 ){
-              doDance1( cmdPriorNbr );            }
-            else {
-              doDance2( cmdPriorNbr );
-            }
-            break;
             
         case 'm':  // choose motor  1  or 2, if not 2 then 1 by default
             if ( cmdPriorNbr != 2 )  {
@@ -141,7 +126,6 @@ void loop()   {
             break;
 
         case 'n':  //          
-            cmdPriorNbr   = serialCmd.parseCmdNbr( serialCmd.cmdPrior );
             if ( motor_ix == 1 ){
                adj1( cmdPriorNbr );
             }
@@ -171,7 +155,7 @@ void loop()   {
             rptVersion();
             break; 
 
-         case 'w':  // report version 
+         case 'w':  //  
             statusReport( );
             break;   
 
@@ -246,14 +230,6 @@ void  runThem( int a_motor_ix, int a_auto_off ) {     // runThem( 1, true );
             while ( stepper1.run() || stepper2.run() ) {
                 // consider print for slow loops  
             }
-
-           
-//            while ( stepper1.run() ) {
-//                // consider print for slow loops  
-//            }
-//            while ( stepper2.run() ) {
-//                // consider print for slow loops  
-//            }
 
             if ( a_auto_off ){
                 stepper1.disableOutputs( );
@@ -352,29 +328,6 @@ void saveArg2(  ) {
 }
     
 // ---------------------------------------------- 
-// not implement yet
-//void restoreArg2xxxx after 1 is tested(  ) {
-//     stepper2.setMaxSpeed( save_speed );
-//     last_acc_min   = save_acc;
-//     stepper2.setAcceleration( last_acc_min );
-//}
-
-//// ---------------------------------------------- 
-//// not implement yet
-//void saveArg1(  ) {
-//     save_speed   = stepper1.maxSpeed ();  
-//     save_acc     = last_acc_1;
-//}
-//    
-//// ---------------------------------------------- 
-//// 
-//void restoreArg1(  ) {
-//     stepper1.setMaxSpeed( save_speed );
-//     last_acc_1   = save_acc;
-//     stepper1.setAcceleration( last_acc_1 );
-//}
-
-// ---------------------------------------------- 
 // nudge 
 void adj1( int arg_steps  ) {
       long ret_long;
@@ -404,101 +357,6 @@ void adj2( int arg_steps  ) {
       Serial.println(  stepper2.currentPosition()  );
 }
 
-// ----------------------------------------------
-// not implemented yet
-void do1DanceStep( int arg_delay, float arg_speed, float arg_acc, long arg_step  ) {
-      // ---------------------------
-      delay( arg_delay );
-      stepper1.setMaxSpeed( arg_speed );
-      setAcc1( arg_acc );
-      runThem( 1, true );    // 0 is both motors  else use 1 or 2 
-}
-
-// ----------------------------------------------
-// not implemented 
-// !! left over from clock, update 
-void doDance1( int ix_dance  ) {
-      long  target_step;
-      long  ret_long;
-      Serial.print( F( "doDance" ) );
-      Serial.println( ix_dance );
-      switch ( ix_dance )  {
-
-        case 0:  // 
-            // do1DanceSep( int arg_delay, float arg_speed, float arg_acc, long arg_step  ) 
-            do1DanceStep( 0,    500., 10000, 2000  );
-            do1DanceStep( 0,    500., 10000, -2000  );
-            do1DanceStep( 0,    500., 10000, 200  ); 
-            do1DanceStep( 0,    500., 10000, -200  );
-            do1DanceStep( 0,    50., 10000, 00  );     
-            break; 
-     
-        case 1:  // 
-            // do1DanceSep( int arg_delay, float arg_speed, float arg_acc, long arg_step  ) 
-            do1DanceStep( 0,    500., 10000, 200  );
-            do1DanceStep( 0,    500., 10000, -200  );
-            do1DanceStep( 0,    500., 10000, 200  ); 
-            do1DanceStep( 0,    500., 10000, -200  );
-            do1DanceStep( 1000, 50., 10000, 00  );     
-            break;   
-
-        case 2:  // 
-            // do1DanceSep( int arg_delay, float arg_speed, float arg_acc, long arg_step  ) 
-            do1DanceStep( 0,    500., 10000, 200  );
-            do1DanceStep( 0,    500., 10000, -200  );
-            do1DanceStep( 0,    500., 10000, 200  ); 
-
-            do1DanceStep( 0,    500., 10000, 210  ); 
-            do1DanceStep( 0,    500., 10000, 200  );
-            do1DanceStep( 0,    500., 10000, 210  ); 
-            do1DanceStep( 0,    500., 10000, 200  );
-
-            do1DanceStep( 0,    500., 10000, 220  ); 
-            do1DanceStep( 0,    500., 10000, 200  );
-            do1DanceStep( 0,    500., 10000, 220  ); 
-            do1DanceStep( 0,    500., 10000, 200  );
-
-            do1DanceStep( 0,    500., 10000, 230  ); 
-            do1DanceStep( 0,    500., 10000, 200  );
-            do1DanceStep( 0,    500., 10000, 230  ); 
-            do1DanceStep( 0,    500., 10000, 200  );
-
-            do1DanceStep( 0,    500., 10000, -200  );
-            do1DanceStep( 0, 500., 10000, 00  );     
-            break;   
-
-        default:
-          Serial.print( F( "Not a know x dance = " ) );
-          Serial.println( ix_dance );
-        }   
-}
-
-// ----------------------------------------------
-// not implemented yet
-void do2DanceStep( int arg_delay, float arg_speed, float arg_acc, long arg_step  ) {
-      // ---------------------------
-      delay( arg_delay );
-      stepper1.setMaxSpeed( arg_speed );
-      setAcc2( arg_acc );
-      stepper2.moveTo( arg_step );
-      runThem( 2, true );    // 0 is both motors  else use 1 or 2 
-}
-
-// ----------------------------------------------
-// not implemented yet 
-void doDance2( int ix_dance  ) {
-      long  target_step;
-      long  ret_long;
-      Serial.print( F( "doDance2 = " ) );
-      Serial.println( ix_dance );
-
-      // do2DanceSep( int arg_delay, float arg_speed, float arg_acc, long arg_step  ) 
-      do2DanceStep( 0,    500., 10000, 200  );
-      do2DanceStep( 0,    500., 10000, -200  );
-      do2DanceStep( 0,    500., 10000, 200  ); 
-      do2DanceStep( 0,    500., 10000, -200  );
-      do2DanceStep( 1000, 50., 10000, 00  );     
-}
 // ---------------------------------------------- 
 // setMaxSpeed ( float   speed ) [in]  speed The desired maximum speed in steps per second. Must be > 0.
 // maybe scaled ( avoid ui floats )  
@@ -526,7 +384,6 @@ void setMaxSpeed2( long arg_speed ) {
 }
 
 // ----------------------------------------------
-// setAcceleration( 200.0 ); 
 // maybe scaled ( avoid ui floats ) 
 void setAcc1( long arg_acc ) {
       last_acc_1   = arg_acc/10;
@@ -544,31 +401,6 @@ void setAcc2( int arg_acc ) {
       Serial.print( F( "setAcc2 " ) );
       Serial.println( last_acc_2 );
 }
-
-//// ----------------------------------------------
-//// not implemented may do later 
-//// setPower( 0 or not 0 );   or enable 0 1 
-//void setPower( int arg_power ) {
-//      if ( arg_power == 0 ) {
-//         stepper1.disableOutputs(  );
-//         Serial.println( F( "setPower off " ) );
-//      } else {
-//         stepper1.enableOutputs(  );
-//         Serial.println( F( "setPower ON " ) );
-//      }
-//}
-
-//// ----------------------------------------------
-//// not implemented may do later 
-//// void AccelStepper::moveTo ( long  absolute  )     
-//void moveToxxx( long arg_pos ) {
-//      Serial.print( F( "moveTo " ) );
-//      Serial.print( arg_pos );
-//      Serial.println( F( " beginning..... " ) );
-//      stepper1.moveTo( arg_pos );
-//      Serial.print( F( "moveTo done" ) );
-//      Serial.println( arg_pos );
-//}
 
 // ----------------------------------------------------------------
 // lots of status info 
@@ -598,18 +430,6 @@ void statusReport( void ) {
     ret_long = stepper2.currentPosition();     //  long AccelStepper::currentPosition (   )      The currently motor position.
     Serial.print( F( "Current Position 2, y : ") ); 
     Serial.println(  ret_long );
-
-//    ret_long = stepper1.distanceToGo();        // long AccelStepper::distanceToGo (   )           The distance from the current position to the target position.
-
-//    Serial.println(  ret_long ); 
-
-//    ret_long = stepper1.isRunning();           // bool AccelStepper::isRunning  (   )             Checks to see if the motor is currently running to a target
-//    Serial.print( F( "Is Running: ") ); 
-//    Serial.println(  ret_long ); 
-
-//    ret_float = stepper1.speed();               // float AccelStepper::speed  (   )                 The most recently set speed
-//    Serial.print( F( "Speed setting: ") ); 
-//    Serial.println(  ret_float ); 
 
     ret_float = stepper1.maxSpeed ();          // float AccelStepper::maxSpeed ()     The most recently set max speed
     Serial.print( F( "Motor 1, x Speed = ") ); 
@@ -660,19 +480,16 @@ void setup()   {
       Serial.begin( BAUD_RATE );
       serialCmd             = SerialCmd();
       serialCmd.resetCmd(  );
-      // pinMode( IRPinOut, OUTPUT );  // must use z command to set up pin out 
-      //pinMode( TIME_CHECK_PIN, OUTPUT );
+ 
       delay( 1000 );     // setup time, may or may not be needed 
 
       // need to init stepper values  ??
-      stepper1.setMaxSpeed(1000);
-      stepper2.setMaxSpeed(1000);
-      // stepper1.setSpeed(50);  normally calculated       
+      stepper1.setMaxSpeed( 1000 );
+      stepper2.setMaxSpeed( 1000 ); 
       //stepper1.setAcceleration( 50  );
       setAcc1( 500 );
       setAcc2( 500 );
       rptVersion();
-      // Serial.println( F( "Ready..." ) );
       Serial.println( F( "ok"  ) );
 }
 

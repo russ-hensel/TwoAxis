@@ -1,6 +1,6 @@
 // all # define options should be defined here,  this keeps them together in a nice way
 
-#define    VERSION_ID         F( "TwoAxis Ver1 2017 11 14.00" )
+#define    VERSION_ID         F( "TwoAxis Ver1 2017 11 19.00" )
 
 
 // !! fix next to right name 

@@ -11,9 +11,6 @@
 //      parsing out a series of numbers 
 
 
-// stop still not working if followed by a crlf i think
-// do not feel like spending time on this now  2015 Feb 21
-
 
 #if defined(ARDUINO) && ARDUINO >= 100      // #  https://github.com/adafruit/DHT-sensor-library/issues/1   changed 2015 Feb 21
 #include "Arduino.h"

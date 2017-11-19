@@ -2,8 +2,15 @@
 
 status
 
-compiles lots of old and dead stuff, 
+       done for now 
 
+
+Random notes:
+
+for the hardware see
+
+Bare Bones 28BYJ-48 Gimbal. by mmontee - Thingiverse
+https://www.thingiverse.com/thing:794786
 
 
 
@@ -24,8 +31,6 @@ compiles lots of old and dead stuff,
 // AccelStepper stepper2( AccelStepper::DRIVER, STEPPER2_STEP_PIN, STEPPER2_DIR_PIN );
 
 
-
-
 ========================= info on perms =====================
 
 
@@ -43,7 +48,6 @@ len 6
 and now from same program
 
 ============================ stepper 1 ========================
-
 
 
 #define STEPPER1_PIN_A 5
